@@ -1,0 +1,80 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(googlesheets4)
+library(tidyverse)
+library(magrittr)
+
+```
+
+```{r}
+process_subquestion<-function(question,idx)
+{
+  question_list<-question %>% 
+    strsplit(". x") %>% 
+    unlist()
+  
+  if(length(question_list)>1){
+    if(idx =='question'){
+      question_list[1]    
+    }else{
+      question_list[2]
+    }
+  }else{
+    if(idx =='question'){
+      question
+    }else{
+      "No_subquestion"
+    }
+  }
+}
+```
+
+
+```{r}
+URL_GSHEET<-"https://docs.google.com/spreadsheets/d/1-fzRGmWpH2QQ0O28MzSpKeDeg7omGGr4kQ-fkjM2InM/edit#gid=0"
+data<-read_sheet(URL_GSHEET)
+```
+
+
+```{r}
+data %>%
+  gather(key='item',value='response',7:32) %>% 
+  mutate(
+    item_question=sapply(item,process_subquestion,idx='question'),
+    item_subquestion=sapply(item,process_subquestion,idx='subquestion')
+  )
+```
+
+
+
+```{r}
+df<-data %>%
+  gather(key='item',value='response',8:32) %>% 
+  mutate(
+    item_question=sapply(item,process_subquestion,idx='question'),
+    item_subquestion=sapply(item,process_subquestion,idx='subquestion')
+  )
+
+write_sheet(data=df,ss=URL_GSHEET,sheet='tidy_data')
+
+```
+
+
+
+```{r}
+
+data %>%
+  gather(key='item',value='response',8:32) %>% 
+  mutate(
+    item_question=sapply(item,process_subquestion,idx='question'),
+    item_subquestion=sapply(item,process_subquestion,idx='subquestion')
+  ) %>% 
+select(item_question) %>% unique()
+  
+```
+

@@ -1,0 +1,478 @@
+---
+title: "Membresias MA"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r echo=FALSE, message=0, warning=0}
+library(googlesheets4)
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(kableExtra)
+library(knitr)
+library(forcats)
+library(egg)
+
+
+knitr::opts_chunk$set(
+  echo = 0,
+  message = 0,
+  warning = 0
+)
+
+adjust_month<-function(month,step){
+  months_<-12
+  pos_month_adjust<-month-1
+  if(month<step){
+    (pos_month_adjust + step-1 +months_)%%months_
+  }else{
+    (pos_month_adjust + step-1 )%%months_
+  }
+  
+}
+
+
+adjust_month<-function(month,step){
+ MONTHS<-12
+ if(month<step){
+   ((month-1) + (2*MONTHS-step+1))%%MONTHS +1
+ }else{
+   ((month-1) + (MONTHS-step+1))%%MONTHS + 1
+ }
+}
+
+options(knitr.table.format = "html") 
+```
+
+
+
+
+```{r}
+URL_GSHEET<-"https://docs.google.com/spreadsheets/d/1rXc_wJGpB3K2ygI2yCsj16hg6pLdYyRy0cE4gintZJM/edit#gid=0"
+data<-read_sheet(URL_GSHEET)
+```
+## Generales de los datos 
+ * Para el reporte se consideran los datos de `r data['alumno_id'] %>% unlist() %>% unique() %>% length() ` usuarios de modalidad *online* única
+ 
+ * La tabla muestra los usuarios por año el reporte
+ 
+```{r}
+data %>% 
+  transmute(
+  `fecha de compra`=as.Date(`fecha de compra`),
+  year= year(`fecha de compra`),
+  `ID orden`=`ID orden`,
+  cantidad=cantidad  
+    ) %>% 
+  group_by(year) %>% 
+  summarise(
+    usuarios = n_distinct(`ID orden`),
+    `Tiempo de membresia (avg)`=round(mean(cantidad)/30)
+  )
+```
+ 
+ * 2020 muestra el efecto pandémico positivo en el consumo y adopción de soluciones digitales en educación [^1] , así como su tasa a la baja al regresar opciones presenciales
+ 
+ [^1]: COLMAN, Helen. ¿ Cómo la pandemia por COVID-19 cambió la industria de la educación para siempre. Instituto Para El Futuro de La Educación, 2021.
+
+* El tiempo promedio de la suscripciones es de **3 meses**
+
+## Descripción de temporalidad de los usuarios
+
+
+ El gráfico muestra la cantidad porcentual (*A*) y acumulada (*B*) de los usuarios según su mes de compra, se desprende que :
+ 
+ * En el periodo comprendido entre febrero y mayo se concentra el 50 % de los usuarios documentados.
+ 
+ * Existe una baja sostenida de membresias desde julio a noviembre
+
+```{r}
+
+p1<-data %>%
+  mutate(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order)
+    ) %>%
+  group_by(month)%>% 
+  summarise(membresias=n_distinct(alumno_id)) %>% 
+  mutate(
+    rate_users=round(100*membresias/sum(membresias),1)
+  ) %>% 
+  as_tibble() %>% 
+  ggplot() +
+  aes(x=month,y=rate_users,group=1) +
+  geom_line()+
+  geom_point(color='darkblue')+
+  labs(
+    title="Usuarios(%)  por mes de compra",
+    x="Mes",
+    y="Usuarios"
+  )
+  
+p2<-data %>%
+  mutate(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order)
+    ) %>%
+  group_by(month)%>% 
+  summarise(membresias=n_distinct(alumno_id)) %>%
+  mutate(
+    rate_users=round(100*membresias/sum(membresias),1),
+    rate_users_cumulated=cumsum(rate_users)
+  ) %>% 
+  as_tibble() %>%
+  ggplot() +
+  aes(x=month,y=rate_users_cumulated,group=1) +
+  geom_line()+
+  geom_point(color='darkblue')+
+  labs(
+    title="Tasa de compra usuarios por mes",
+    x="Mes",
+    y=""
+  )
+
+ggarrange(p1,p2, ncol=2, nrow=1,  labels = c("A", "B") )
+```
+
+
+
+
+```{r}
+data %>%
+  transmute(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order),
+    alumno_id=alumno_id,
+    cantidad=round(cantidad/30)
+    ) %>% 
+  distinct() %>% 
+  ggplot() +
+  aes(x=month,y=cantidad) +
+  geom_boxplot() +
+  labs(
+    title="Tasa de compra usuarios por mes",
+    x="Mes de compra",
+    y="Duracion membresia (meses)"
+  )
+```
+
+* Durante el periódo de aumento ventas, la duración preferida de membresia ronda los 3 meses
+
+
+
+```{r eval=FALSE}
+
+
+p1<-data %>%
+  mutate(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order)
+    ) %>%
+  group_by(month)%>% 
+  summarise(membresias=n_distinct(alumno_id)) %>% 
+  mutate(
+    rate_users=round(100*membresias/sum(membresias),1)
+  ) %>% 
+  as_tibble() %>% 
+  ggplot() +
+  aes(x=month,y=rate_users,group=1) +
+  geom_line()+
+  geom_point(color='darkblue')+
+  labs(
+    title="Usuarios(%)  por mes de compra",
+    x="Mes",
+    y="Usuarios"
+  )
+  
+p2<-data %>%
+  mutate(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order)
+    ) %>%
+  group_by(month)%>% 
+  summarise(membresias=n_distinct(alumno_id)) %>%
+  mutate(
+    rate_users=round(100*membresias/sum(membresias),1),
+    rate_users_cumulated=cumsum(rate_users)
+  ) %>% 
+  as_tibble() %>%
+  ggplot() +
+  aes(x=month,y=rate_users_cumulated,group=1) +
+  geom_line()+
+  geom_point(color='darkblue')+
+  labs(
+    title="Tasa de compra usuarios por mes",
+    x="Mes",
+    y=""
+  )
+
+p3<-data %>%
+  transmute(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order),
+    alumno_id=alumno_id,
+    cantidad=round(cantidad/30)
+    ) %>% 
+  distinct() %>% 
+  ggplot() +
+  aes(x=month,y=cantidad) +
+  geom_boxplot() +
+  labs(
+    title="Tasa de compra usuarios por mes",
+    x="Mes de compra",
+    y="Duracion membresia (meses)"
+  )
+
+ggarrange(p1,p2,p3, ncol=1, nrow=3,  labels = c("A", "B","C") )
+
+```
+
+
+
+## Hábitos de consumo
+
+Los gráficos muestran la distribución  del consumo de cápsulas por los usuarios del conjunto de datos
+
+
+```{r}
+plt1<-data %>% 
+  group_by(alumno_id) %>% 
+  summarise(n_capsulas=n_distinct(capsula_aprendizaje_id)) %>% 
+  ggplot()+
+  aes(x=n_capsulas) +
+  geom_histogram(aes(y=..density..),colour="black", fill="white") +
+ geom_density(alpha=.2, fill="#FF6666") +
+  labs(x='Cantidad de cápsulas con dictamen',y='')
+
+plt2<-data %>% 
+  group_by(alumno_id) %>% 
+  summarise(n_capsulas=n_distinct(capsula_aprendizaje_id)) %>% 
+  ggplot()+
+  aes(x=n_capsulas) +
+  geom_boxplot() +
+  labs(x='',y='')
+
+ggarrange(plt1, plt2, heights = 2:1)
+```
+
+Se observa que: 
+
+*  En promedio los usuarios terminaron 12 cápsulas 
+
+*  El 25 % terminó más de 17 cápsulas
+
+
+```{r}
+
+data %>%
+  transmute(
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order),
+    alumno_id=alumno_id,
+    tiempo_membresia=cut(round(cantidad/30,0),breaks=c(-Inf, 3, 6, 9,Inf), labels=c("1-3 m","3-6 m","6-9 m","9-12 m")),    capsula_aprendizaje_id=capsula_aprendizaje_id
+    ) %>% 
+  distinct() %>%
+  group_by(month,tiempo_membresia,alumno_id) %>%
+  summarise(n_capsulas=n_distinct(capsula_aprendizaje_id)) %>% 
+  ggplot() +
+  aes(x=month,y=n_capsulas,color=tiempo_membresia) +
+  geom_boxplot() +
+  labs(
+    title="Tasa de compra usuarios por mes",
+    x="Mes de compra",
+    y="Cápsulas",
+    color="Tiempo membresia"
+  )+ 
+  theme(legend.position="bottom",legend.box = "horizontal")
+
+```
+
+
+
+
+```{r eval=FALSE}
+data %>% 
+  group_by(alumno_id) %>% 
+  summarise(n_capsulas=n_distinct(capsula_aprendizaje_id),
+            n_ejercicos=mean(ejercicios_realizados),
+            rate_exercises=mean(ejercicios_correctos/ejercicios_realizados)) %>% 
+  summary() 
+```
+
+
+
+### Aprovechamiento 
+
+```{r}
+p1<-data %>% 
+  group_by(alumno_id) %>% 
+  summarise(puntaje_final_capsula_avg=mean(puntaje_final_capsula)) %>% 
+  ggplot()+
+  aes(x=puntaje_final_capsula_avg) +
+  geom_histogram(aes(y=..density..),colour="black", fill="white") +
+ geom_density(alpha=.2, fill="#FF6666") +
+  labs(x="",title="Distribución de puntajes")
+
+plt2<-data %>% 
+  group_by(alumno_id) %>% 
+  summarise(puntaje_final_capsula_avg=mean(puntaje_final_capsula)) %>% 
+  ggplot()+
+  aes(x=puntaje_final_capsula_avg) +
+  geom_boxplot() +
+  labs(x='Puntaje',y='')
+
+ggarrange(p1, plt2, heights = 2:1)
+```
+
+
+```{r}
+
+
+data %>%
+  transmute(
+    capsula_aprendizaje_id=capsula_aprendizaje_id,
+    puntaje_final=puntaje_final_capsula,
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order),
+    alumno_id=alumno_id,
+    tiempo_membresia=cut(round(cantidad/30,0),breaks=c(-Inf, 3, 6, 9,Inf), labels=c("1-3 m","3-6 m","6-9 m","9-12 m"))
+    ) %>% 
+  distinct() %>%
+  ggplot() +
+  aes(x=month,y=puntaje_final,color=tiempo_membresia) +
+  geom_boxplot() +
+  labs(
+    title="Puntaje/Mes de compra-duracion membresia",
+    x="Mes de compra",
+    y="Puntaje",
+    color="Tiempo membresia"
+  )+ 
+  theme(legend.position="bottom",legend.box = "horizontal")
+```
+
+
+```{r}
+
+data %>%
+  transmute(
+    capsula_aprendizaje_id=factor(capsula_aprendizaje_id),
+    puntaje_final=puntaje_final_capsula,
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order),
+    alumno_id=alumno_id,
+    tiempo_membresia=cut(round(cantidad/30,0),breaks=c(-Inf, 3, 6, 9,Inf), labels=c("1-3 m","3-6 m","6-9 m","9-12 m"))
+    ) %>% 
+  distinct() %>%
+  ggplot() +
+  aes(x=capsula_aprendizaje_id,y=puntaje_final) +
+  geom_boxplot() +
+  labs(
+    title="Puntaje/Cápsula-duracion membresia",
+    x="Cápsula ID",
+    y="Puntaje"
+  )+ 
+  theme(legend.position="bottom",legend.box = "horizontal")
+
+
+data %>%
+  transmute(
+    capsula_aprendizaje_id=factor(capsula_aprendizaje_id),
+    puntaje_final=puntaje_final_capsula,
+    `fecha de compra`=as.Date(`fecha de compra`),
+    month_order=sapply(month(`fecha de compra`),adjust_month,step=9),
+    month=as.character(month(`fecha de compra`,label=1)),
+    month=fct_reorder(month,month_order),
+    alumno_id=alumno_id,
+    tiempo_membresia=cut(round(cantidad/30,0),breaks=c(-Inf, 3, 6, 9,Inf), labels=c("1-3 m","3-6 m","6-9 m","9-12 m"))
+    ) %>% 
+  distinct() %>%
+  ggplot() +
+  aes(x=capsula_aprendizaje_id,y=puntaje_final,color=tiempo_membresia) +
+  geom_boxplot() +
+  labs(
+    title="Puntaje/Cápsula-duracion membresia",
+    x="Cápsula ID",
+    y="Puntaje",
+    color="Tiempo membresia"
+  )+ 
+  theme(legend.position="bottom",legend.box = "horizontal")
+
+```
+
+
+
+## Hábitos de consumo por cápsula
+
+
+
+
+**Top cápsulas consumo**
+
+```{r}
+data %>% 
+  group_by(
+    capsula_aprendizaje_id
+  ) %>% 
+  summarise(
+    `n students`= n_distinct(alumno_id),
+    `avg cal` =mean(puntaje_final_capsula),
+    `% acierto` = mean(ejercicios_correctos/ejercicios_realizados)
+    ) %>% 
+  arrange(desc(`n students`)) %>% head(15)
+```
+
+
+
+
+
+**Top cápsulas consumo asc()**
+
+```{r}
+data %>% 
+  group_by(
+    capsula_aprendizaje_id
+  ) %>% 
+  summarise(
+    `n students`= n_distinct(alumno_id),
+    `avg cal` =mean(puntaje_final_capsula)
+    ) %>% 
+  arrange(`n students`) %>% head(10)
+```
+
+
+
+
+
+
+##  Ideas sueltas
+
+* Obtener una fecha estimada de cuando el usuario presente el examen, puede pedirsela para enviarle una alerta periodica (feature)
+
+* Tasa de recompra
+
+* Income por modalidad
+
+
+
+
