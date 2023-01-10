@@ -52,7 +52,9 @@ options(knitr.table.format = "html")
 
 ```{r}
 URL_GSHEET<-"https://docs.google.com/spreadsheets/d/1rXc_wJGpB3K2ygI2yCsj16hg6pLdYyRy0cE4gintZJM/edit#gid=0"
-data<-read_sheet(URL_GSHEET)
+#URL_GSHEET<-"https://docs.google.com/spreadsheets/d/1rXc_wJGpB3K2ygI2yCsj16hg6pLdYyRy0cE4gintZJM/edit#gid=81128047"
+#data<-read_sheet(URL_GSHEET )
+data<-read_sheet(URL_GSHEET,sheet ='Datos de uso' )
 ```
 ## Generales de los datos 
  * Para el reporte se consideran los datos de `r data['alumno_id'] %>% unlist() %>% unique() %>% length() ` usuarios de modalidad *online* única
