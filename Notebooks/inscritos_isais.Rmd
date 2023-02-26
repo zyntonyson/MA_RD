@@ -1,0 +1,163 @@
+---
+title: "Inscritos ISAIS"
+output: html_notebook
+---
+
+
+```{r}
+# Definir lista de paquetes
+package_list <- "dplyr,ggplot2,tidyr"
+
+# Convertir string en vector de caracteres
+package_vec <- strsplit(package_list, ",")[[1]]
+
+# Revisar si los paquetes están instalados, instalarlos si no lo están, y cargarlos
+for (pkg in package_vec) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg)}
+  library(pkg, character.only = TRUE)
+}
+
+
+```
+
+
+
+```{r echo=FALSE, message=0, warning=0}
+
+library(googlesheets4)
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(kableExtra)
+library(knitr)
+library(forcats)
+library(sf)
+library(purrr)
+library(ggrepel)
+library(egg)
+library(readxl)
+library(RSQLite)
+library(DBI)
+
+
+knitr::opts_chunk$set(
+  echo = 0,
+  message = 0,
+  warning = 0
+)
+
+try_wrapper=function(x,foo,exception_value=-1){
+  tryCatch(foo(x), error=function(e){return(exception_value)} )
+}
+
+
+label_cases<-function(case){
+  if(case == 0){
+    return("Sin datos")
+  }else if(case < 33){
+    return("Bajo")
+  }else if(case < 66){
+    return("Medio")
+  }else{
+    return("Superior")
+  }
+}
+
+PATH_CP_MX<-"C:\\Users\\roman\\Desktop\\mapas_source\\codigos_postales\\CPdescarga.xls"
+CP_MX<-read_excel(PATH_CP_MX,sheet = 'Yucatán')
+
+URL_GSHEET<-"https://docs.google.com/spreadsheets/d/1piJPZP_dLxFaqraiAd0yNb1C0o3FNv-LUFnMlMYioak/edit#gid=0"
+data<-read_sheet(URL_GSHEET,sheet ='Datos' )
+
+MAPA_URL="C:\\Users\\roman\\Desktop\\mapas_source\\codigos_postales\\yuc\\cp_yuc\\CP_31Yuc_v9.shp"
+
+yuc_map <- st_read(MAPA_URL) 
+
+
+```
+
+
+```{r}
+## Referencias
+##https://rstudio-pubs-static.s3.amazonaws.com/619184_9b3a19cf00d543a183674bb332bed5b0.html
+```
+
+
+```{r}
+SQL_CP <- r"(C:\Users\roman\Desktop\util_mexico.sql)" 
+
+con  <- dbConnect(SQLite(), dbname=":memory:")
+query <- readLines(SQL_CP, warn = FALSE)
+dbExecute(con, query)
+
+```
+
+
+
+
+```{r}
+
+
+data %>%
+  mutate(codigo_postal=as.numeric(as.character(codigo_postal))) %>%
+  group_by(codigo_postal) %>% 
+  summarise(cases=n_distinct(`# registro_alumno_id`)) %>% 
+  drop_na()%>%
+  mutate(cases=round(100*cases/sum(cases))) %>% 
+  mutate(codigo_postal=as.character(codigo_postal)) %>%
+  right_join(yuc_map,by=join_by(codigo_postal==d_codigo)) %>% 
+  mutate(cases=ifelse(is.na(cases),0,cases)) %>%
+  mutate(cases=100*cases/max(cases)) %>%
+  mutate(cases=sapply(cases,label_cases)) %>%
+  mutate(cases=factor(cases)) %>% 
+  mutate(cases=fct_relevel(cases,c("Sin datos","Bajo","Medio","Superior"))) %>% 
+  rename(d_codigo=codigo_postal) %>% 
+  left_join(CP_MX %>%select(d_codigo,D_mnpio)) %>% 
+  mutate(D_mnpio=ifelse(is.na(D_mnpio),"--",D_mnpio)) %>% 
+  filter(D_mnpio=="Mérida") %>% 
+  ggplot() + aes(fill=cases,geometry = geometry) + geom_sf() +
+  scale_fill_manual(values = c("Sin datos" = "white",
+                                "Bajo"="firebrick1",
+                                "Medio"="orange",
+                                "Superior"="seagreen3"))+
+  theme(
+  legend.position="bottom",
+  legend.box = "horizontal",
+    axis.text.x = element_blank(),
+  axis.text.y = element_blank(),
+  axis.ticks = element_blank()) +
+  labs(
+    title="Densidad de inscritos por Código Postal",
+    x="",
+    y=""
+  )
+
+
+
+```
+
+
+
+
+
+
+```{r}
+#Primer mapa: solo muestra los límites departamentales
+ggplot(data = yuc_map) +
+  geom_sf()
+```
+
+
+
+
+```{r}
+yuc_map
+
+```
+
+
+
+
+
+
