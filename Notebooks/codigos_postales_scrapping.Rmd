@@ -1,0 +1,87 @@
+---
+title: "CP latitud"
+output: html_notebook
+---
+
+
+```{r}
+
+library(RSelenium)
+library(googlesheets4)
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(glue)
+
+
+
+knitr::opts_chunk$set(
+  echo = 0,
+  message = 0,
+  warning = 0
+)
+
+
+PATH_CP_MX<-"C:\\Users\\roman\\Desktop\\mapas_source\\codigos_postales\\CPdescarga.xls"
+CP_MX<-read_excel(PATH_CP_MX,sheet = 'Yucatán')
+
+
+```
+
+
+
+```{r}
+#shell('docker pull selenium/standalone-firefox')
+
+#shell('docker run -d -p 4445:4444 selenium/standalone-firefox')
+remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4445L, browserName = "firefox")
+remDr$open()
+```
+
+
+```{r}
+#shell("docker pull mysql:latest")
+#shell("docker run --name my-mysql-container -e MYSQL_ROOT_PASSWORD=my-secret-pw -p 3306:3306 -d mysql:latest")
+#shell(r"(docker cp C:\Users\roman\Desktop\util_mexico.sql my-mysql-container:util_mexico.sql)")
+
+CREATE DATABASE my_database;
+USE my_database;
+SOURCE util_mexico.sql;
+
+
+```
+
+
+
+
+```{r}
+df<-data.frame(cp=0,lat=1,lng=1)
+for(cp in CP_MX$d_codigo %>% unique()){
+skip_to_next <- FALSE
+p<-tryCatch({
+print(glue("https://mex.youbianku.com/es/mex-postcode/{cp}\r"))
+remDr$navigate(glue("https://mex.youbianku.com/es/mex-postcode/{cp}"))
+lat <- remDr$findElement(using = "xpath", value = '/html/body/div[2]/div/div[1]/div/div[3]/div/div[3]/div/div/div/div[1]/div/fieldset/div[2]/ul/li[4]/span[2]')$getElementText()[[1]]
+lng<-remDr$findElement(using = "xpath", value = '/html/body/div[2]/div/div[1]/div/div[3]/div/div[3]/div/div/div/div[1]/div/fieldset/div[2]/ul/li[5]/span[2]')$getElementText()[[1]]
+c(cp,lat,lng)
+  
+},
+error = function(e) { skip_to_next <<- TRUE}  
+)
+  
+if(skip_to_next) { next }
+
+df[nrow(df) + 1,]<- p
+}
+```
+
+
+
+
+
+```{r}
+remDr$close()
+
+#shell("docker container stop $(docker container list -q)")
+```
+

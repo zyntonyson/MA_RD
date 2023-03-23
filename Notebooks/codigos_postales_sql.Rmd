@@ -1,0 +1,63 @@
+---
+title: "Codigos postales SQL"
+output: html_notebook
+---
+
+
+```{r}
+library(RMySQL)
+library(googlesheets4)
+library(tidyverse)
+library(magrittr)
+library(tidyverse)
+
+
+GSHEET_URL<-"https://docs.google.com/spreadsheets/d/1FvHPiI2C3HjgTAmmFGAyC2tUa_tdUJTxG4ynJPsbsY0/edit#gid=0"
+
+GSHEET_ID<-"1FvHPiI2C3HjgTAmmFGAyC2tUa_tdUJTxG4ynJPsbsY0"
+HOJA<-"cp_mx_selection"
+
+```
+
+
+
+
+```{r}
+
+con <- dbConnect(MySQL(), user="root", password="mysecret",
+                 dbname="cp_mx", host="localhost")
+```
+
+
+
+```{r}
+consulta <- "
+SELECT
+  distinct
+  ee.nombre as estado,
+  mm.nombre as municipio,
+  codigo_postal,
+  CONCAT(latitud,',',longitud) as lat_long
+FROM
+  colonias cc,
+  municipios mm,
+  estados ee
+WHERE
+  cc.municipio = mm.id AND
+  mm.estado = ee.clave 
+"
+df<-dbGetQuery(con, consulta) %>% 
+  data.frame()
+dbDisconnect(con)
+
+```
+
+
+```{r}
+# Verifica si la hoja de cálculo existe
+hoja <- gs4_find(GSHEET_ID)
+# Escribe los datos en la hoja de cálculo
+write_sheet(df, GSHEET_ID, sheet = HOJA)
+
+```
+

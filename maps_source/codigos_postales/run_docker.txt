@@ -1,0 +1,13 @@
+docker pull mysql:latest
+docker run --name my-mysql-container -e MYSQL_ROOT_PASSWORD=mysecret -p 3306:3306 -d mysql:latest
+docker cp util_mexico.sql my-mysql-container:util_mexico.sql
+nysecret
+
+ winpty docker exec -it my-mysql-container -u root -p
+
+
+CREATE DATABASE my_database;
+USE my_database;
+SOURCE /tu_directorio/tu_archivo.sql;
+
+mysql -h localhost -P 3306 -u root -p
